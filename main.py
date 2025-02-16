@@ -53,18 +53,17 @@ URL_EMBEDDING = os.getenv("OPEN_AI_EMBEDDING_URL")
 app = FastAPI()
 
 RUNNING_IN_CODESPACES = "CODESPACES" in os.environ
-RUNNING_IN_DOCKER = os.path.exists("/.dockerenv")
+RUNNING_IN_DOCKER = os.path.exists("/.dockerenv")   
 logging.basicConfig(level=logging.INFO)
 
 def ensure_local_path(path: str) -> str:
-    """Ensure the path uses './data/...' locally, but '/data/...' in Docker."""
-    if ((not RUNNING_IN_CODESPACES) and RUNNING_IN_DOCKER): 
-        print("IN HERE",RUNNING_IN_DOCKER) # If absolute Docker path, return as-is :  # If absolute Docker path, return as-is
-        return path
+    """Ensure correct file paths for local and Docker environments."""
+    if RUNNING_IN_DOCKER and not RUNNING_IN_CODESPACES:  
+        logging.info(f"Converting path for Docker: {path}")
+        return path.replace("C:\\", "/data/").replace("\\", "/").lstrip('/data')  # Fix for double /data/
     
-    else:
-        logging.info(f"Inside ensure_local_path with path: {path}")
-        return path
+    logging.info(f"Using local path: {path}")
+    return path
 
 function_mappings: Dict[str, Callable] = {
 "install_and_run_script": install_and_run_script, 

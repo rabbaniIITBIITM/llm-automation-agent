@@ -50,14 +50,13 @@ RUNNING_IN_DOCKER = os.path.exists("/.dockerenv")
 logging.basicConfig(level=logging.INFO)
 
 def ensure_local_path(path: str) -> str:
-    """Ensure the path uses './data/...' locally, but '/data/...' in Docker."""
-    if ((not RUNNING_IN_CODESPACES) and RUNNING_IN_DOCKER): 
-        print("IN HERE",RUNNING_IN_DOCKER) # If absolute Docker path, return as-is :  # If absolute Docker path, return as-is
-        return path
+    """Ensure correct file paths for local and Docker environments."""
+    if RUNNING_IN_DOCKER and not RUNNING_IN_CODESPACES:  
+        logging.info(f"Converting path for Docker: {path}")
+        return path.replace("C:\\", "/data/").replace("\\", "/").lstrip('/data')  # Fix for double /data/
     
-    else:
-        logging.info(f"Inside ensure_local_path generate_schema with path: {path}")
-        return path   
+    logging.info(f"Using local path: {path}")
+    return path  
 
 def convert_function_to_openai_schema(func: Callable) -> dict:
     """
@@ -133,15 +132,16 @@ def format_file_with_prettier(file_path: str, prettier_version: str):
     """
     input_file_path = ensure_local_path(file_path)
     
-    # Find npx dynamically
-    npx_cmd = shutil.which("npx")
-    if not npx_cmd:
-        raise FileNotFoundError("npx not found. Ensure Node.js and Prettier are installed.")
+    # Find Prettier dynamically (without npx)
+    prettier_cmd = shutil.which("prettier")
+    if not prettier_cmd:
+        raise FileNotFoundError("Prettier not found. Ensure Node.js and Prettier are installed.")
     
-    subprocess.run([npx_cmd, f"prettier@{prettier_version}", "--write", input_file_path])
-
-# format_file_with_prettier("C:\data\format.md","3.4.2")
-format_file_with_prettier("C:\\data\\format.md", "3.4.2")
+    try:
+        subprocess.run([prettier_cmd, "--write", input_file_path], check=True)
+    except subprocess.CalledProcessError as e:
+        print(f"[error] Prettier formatting failed for {input_file_path}: {e}")
+        # Continue running other functions
 
 
 def query_gpt(user_input: str,task: str):
